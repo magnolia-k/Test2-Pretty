@@ -235,7 +235,7 @@ sub finalize {
         }
             
         my $handles = $self->{+HANDLES};
-        my $io = $handles->[STD_OUT()];
+        my $io = $handles->[OUT_STD()];
         print $io "\n$msg\n";
     }
 }
