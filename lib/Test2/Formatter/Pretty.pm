@@ -48,38 +48,20 @@ use Cwd ();
 
 BEGIN { require Test2::Formatter; our @ISA = qw(Test2::Formatter::TAP) }
 
-our %CONVERTERS;
-if ((!$ENV{HARNESS_ACTIVE} || $ENV{PERL_TEST_PRETTY_ENABLED})) {
+our %CONVERTERS = (
+    'Test2::Event::Ok'           => 'event_ok',
+    'Test2::Event::Skip'         => 'event_skip',
+    'Test2::Event::Note'         => 'event_note',
+    'Test2::Event::Diag'         => 'event_diag',
+    'Test2::Event::Bail'         => 'event_bail',
+    'Test2::Event::Exception'    => 'event_exception',
+    'Test2::Event::Subtest'      => 'event_subtest',
+    'Test2::Event::Plan'         => 'event_plan',
+    'Test2::Event::TAP::Version' => 'event_version',
+);
 
-	%CONVERTERS = (
-		'Test2::Event::Ok'           => 'event_ok',
-		'Test2::Event::Skip'         => 'event_skip',
-		'Test2::Event::Note'         => 'event_note',
-		'Test2::Event::Diag'         => 'event_diag',
-		'Test2::Event::Bail'         => 'event_bail',
-		'Test2::Event::Exception'    => 'event_exception',
-		'Test2::Event::Subtest'      => 'event_subtest',
-		'Test2::Event::Plan'         => 'event_plan',
-		'Test2::Event::TAP::Version' => 'event_version',
-	);
-
-    if ($ENV{HARNESS_ACTIVE}) {
-        $SHOW_DUMMY_TAP++;  # Test::Harnessが動いている時は、最後にダミーを表示する。
-    }
-
-} else {
-
-	%CONVERTERS = (
-		'Test2::Event::Ok'           => 'SUPER::event_ok',
-		'Test2::Event::Skip'         => 'SUPER::event_skip',
-		'Test2::Event::Note'         => 'SUPER::event_note',
-		'Test2::Event::Diag'         => 'SUPER::event_diag',
-		'Test2::Event::Bail'         => 'SUPER::event_bail',
-		'Test2::Event::Exception'    => 'SUPER::event_exception',
-		'Test2::Event::Subtest'      => 'SUPER::event_subtest',
-		'Test2::Event::Plan'         => 'SUPER::event_plan',
-		'Test2::Event::TAP::Version' => 'SUPER::event_version',
-	);
+if ($ENV{HARNESS_ACTIVE}) {
+    $SHOW_DUMMY_TAP++;
 }
 
 my %SAFE_TO_ACCESS_HASH = %CONVERTERS;
@@ -170,11 +152,15 @@ sub event_skip {
     my $todo   = $e->todo;
 
     my $out = "";
+    $out .= "not " unless $e->{pass};
+    $out .= "ok";
+    $out .= " $num" if defined $num;
+    $out .= " - $name" if $name;
     if (defined($todo)) {
-        $out .= colored(['yellow'], "TODO & SKIP");
+        $out .= " # TODO & SKIP"
     }
     else {
-        $out .= colored(['yellow'], "skip")
+        $out = colored(['yellow'], "skip")
     }
     $out .= " $reason" if defined($reason) && length($reason);
 
@@ -214,6 +200,12 @@ sub event_plan {
     }
 
     return [OUT_STD, "$plan\n"];
+}
+
+sub event_other {
+    my $self = shift;
+
+    goto \&{ $self->SUPER::event_other };
 }
 
 sub finalize {
