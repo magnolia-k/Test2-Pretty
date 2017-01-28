@@ -1,0 +1,17 @@
+blib*
+Makefile
+Makefile.old
+Build
+Build.bat
+_build*
+pm_to_blib*
+*.tar.gz
+.lwpcookies
+cover_db
+pod2htm*.tmp
+Test2-Pretty-*
+.DS_Store
+MYMETA.*
+*.bak
+local*
+cpanfile.snapshot
