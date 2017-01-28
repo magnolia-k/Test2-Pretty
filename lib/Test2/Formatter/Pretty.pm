@@ -46,18 +46,28 @@ use Test2::Util::HashBase qw{ no_numbers handles _encoding };
 use Carp qw/croak/;
 use Cwd ();
 
-BEGIN { require Test2::Formatter; our @ISA = qw(Test2::Formatter::TAP) }
+BEGIN {
+    require Test2::Formatter;
+    our @ISA = qw(Test2::Formatter::TAP);
+    
+    *OUT_STD = Test2::Formatter::TAP->can('OUT_STD');
+    *OUT_ERR = Test2::Formatter::TAP->can('OUT_ERR');
+
+    my $todo = OUT_ERR() + 1;
+    *OUT_TODO = sub() { $todo };
+}
 
 our %CONVERTERS = (
-    'Test2::Event::Ok'           => 'event_ok',
-    'Test2::Event::Skip'         => 'event_skip',
-    'Test2::Event::Note'         => 'event_note',
-    'Test2::Event::Diag'         => 'event_diag',
-    'Test2::Event::Bail'         => 'event_bail',
-    'Test2::Event::Exception'    => 'event_exception',
-    'Test2::Event::Subtest'      => 'event_subtest',
-    'Test2::Event::Plan'         => 'event_plan',
-    'Test2::Event::TAP::Version' => 'event_version',
+    'Test2::Event::Ok'                      => 'event_ok',
+    'Test2::Event::Skip'                    => 'event_skip',
+    'Test2::Event::Note'                    => 'event_note',
+    'Test2::Event::Diag'                    => 'event_diag',
+    'Test2::Event::Bail'                    => 'event_bail',
+    'Test2::Event::Exception'               => 'event_exception',
+    'Test2::Event::Subtest'                 => 'event_subtest',
+    'Test2::Event::Plan'                    => 'event_plan',
+    'Test2::Event::TAP::Version'            => 'event_version',
+    'Test2::Formatter::Pretty::TodoDiag'    => 'event_todo_diag',
 );
 
 if ($ENV{HARNESS_ACTIVE}) {
@@ -69,9 +79,6 @@ my %SAFE_TO_ACCESS_HASH = %CONVERTERS;
 _autoflush(\*STDOUT);
 _autoflush(\*STDERR);
 
-sub OUT_STD() { 0 }
-sub OUT_ERR() { 1 }
-
 sub init {
     my $self = shift;
 
@@ -79,6 +86,8 @@ sub init {
     my $handles = $self->{+HANDLES};
     binmode($_, ":encoding($TERM_ENCODING)") for @$handles;
     $self->{+_ENCODING} = $TERM_ENCODING;
+
+    $self->{+HANDLES}->[OUT_TODO] = $self->{+HANDLES}->[OUT_STD];
 }
 
 if ($^C) {
@@ -96,6 +105,9 @@ sub _autoflush {
 sub event_ok {
     my $self = shift;
     my ($e, $num) = @_;
+
+    # The OK event of subtest is not displayed.
+    return [OUT_STD, ""] if ($e->subtest_id);
 
     my ($name, $todo) = @{$e}{qw/name todo/};
     my $in_todo = defined($todo);
@@ -172,6 +184,8 @@ sub event_note {
     my ($e, $num) = @_;
 
     chomp(my $msg = $e->message);
+    # It does not display the string 'Subtest'
+    # ... It's a bit miscellaneous implementation
     unless ($msg =~ s/^Subtest: /  /) {
         $msg =~ s/^/# /;
         $msg =~ s/\n/\n# /g;
@@ -202,10 +216,11 @@ sub event_plan {
     return [OUT_STD, "$plan\n"];
 }
 
-sub event_other {
+sub event_todo_diag {
     my $self = shift;
-
-    goto \&{ $self->SUPER::event_other };
+    my @out = $self->event_diag(@_);
+    $out[0]->[0] = OUT_TODO();
+    return @out;
 }
 
 sub finalize {
