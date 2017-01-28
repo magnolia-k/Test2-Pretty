@@ -4,8 +4,18 @@ Test2::Pretty - prototype Test::Pretty for new Test2 lib!
 
 # SYNOPSIS
 
-  use Test2::Pretty;
+```sh
+$ cd Test2-Pretty
+$ carton install
+$ carton exec perl -Ilib -MTest2::Pretty example/01-success.test
+```
 
+to compare original Test::Pretty's output
+
+```sh
+$ cpanm Test::Pretty
+$ perl -MTest::Pretty example/01-success.test
+```
 
 **During experiment of implementation!!!!**
 
