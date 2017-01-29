@@ -194,6 +194,23 @@ sub event_note {
     return [OUT_STD, "$msg\n"];
 }
 
+sub event_diag {
+    my $self = shift;
+    my ($e, $num) = @_;
+
+    chomp(my $msg = $e->message);
+    # It does not display about plan warning...
+    # ... It's a bit miscellaneous implementation
+	if (! $e->in_subtest and $msg =~ /^Looks like you planned/ ) {
+        return [OUT_ERR, ""];
+    }
+
+    $msg =~ s/^/# /;
+    $msg =~ s/\n/\n# /g;
+
+    return [OUT_ERR, "$msg\n"];
+}
+
 sub event_plan {
     my $self = shift;
     my ($e, $num) = @_;
@@ -225,16 +242,21 @@ sub event_todo_diag {
 
 sub finalize {
     my $self = shift;
+    my ($plan, $count, $failed, undef, $is_subtest) = @_;
 
-    my ($plan, $count, $failed) = @_;
+    my $handles = $self->{+HANDLES};
 
-    if ($SHOW_DUMMY_TAP) {
+    if (!$is_subtest and $plan and $plan ne 'SKIP' and $plan != $count) {
+        my $io = $handles->[OUT_ERR()];
+        print $io "# Bad plan: $count != $plan\n";
+    }
+
+    if (!$is_subtest and $SHOW_DUMMY_TAP) {
         my $msg = 'ok';
         if ($failed or $plan != $count) {
             $msg = 'not ' . $msg;
         }
             
-        my $handles = $self->{+HANDLES};
         my $io = $handles->[OUT_STD()];
         print $io "\n$msg\n";
     }
