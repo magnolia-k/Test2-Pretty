@@ -107,7 +107,7 @@ sub event_ok {
     my ($e, $num) = @_;
 
     # The OK event of subtest is not displayed.
-    return [OUT_STD, ""] if ($e->subtest_id);
+    return [OUT_STD, ""] if ($e->subtest_id and $e->{pass});
 
     my ($name, $todo) = @{$e}{qw/name todo/};
     my $in_todo = defined($todo);
@@ -226,11 +226,11 @@ sub event_todo_diag {
 sub finalize {
     my $self = shift;
 
-    my (undef, undef, $failed) = @_;
+    my ($plan, $count, $failed) = @_;
 
     if ($SHOW_DUMMY_TAP) {
         my $msg = 'ok';
-        if ($failed) {
+        if ($failed or $plan != $count) {
             $msg = 'not ' . $msg;
         }
             

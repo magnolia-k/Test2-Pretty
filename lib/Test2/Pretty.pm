@@ -14,12 +14,13 @@ if ((!$ENV{HARNESS_ACTIVE} || $ENV{PERL_TEST_PRETTY_ENABLED})) {
     require Test2::Formatter::Pretty;
     $hub->format(Test2::Formatter::Pretty->new());
 } else {
-    require Test2::Formatter::TAP;
-    $hub->format(Test2::Formatter::TAP->new());
+    require Test::Builder::Formatter;
+    $hub->format(Test::Builder::Formatter->new());
 
     my $enc = Term::Encoding::term_encoding();
     binmode $builder->output,         ":encoding($enc)";
     binmode $builder->failure_output, ":encoding($enc)";
+    binmode $builder->todo_output,    ":encoding($enc)";
 }
 
 1;
