@@ -21,6 +21,10 @@ WriteMakefile(
         'ExtUtils::MakeMaker' => 6.52,
     },
 
+    TEST_REQUIRES       => {
+        'Test::Requires'    => 0,
+    },
+
     PREREQ_PM           => {
         'Test::More'        => 1.302075,
         'Term::Encoding'    => 0,
