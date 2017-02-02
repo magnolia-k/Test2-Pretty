@@ -4,47 +4,16 @@ use strict;
 use warnings;
 require PerlIO;
 
-use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
-use Term::Encoding;
-use Term::ANSIColor ();
-use File::Spec ();
-
 our $VERSION = '0.40';
+
+use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
+use Term::ANSIColor ();
 
 *colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
 
 my $SHOW_DUMMY_TAP;
-my $TERM_ENCODING = Term::Encoding::term_encoding();
-my $ENCODING_IS_UTF8 = $TERM_ENCODING =~ /^utf-?8$/i;
-
-our $NO_ENDING;
-
-our $BASE_DIR = Cwd::getcwd();
-my %filecache;
-
-# stolen from original Test::Pretty code
-my $get_src_line = sub {
-    my ($filename, $lineno) = @_;
-    $filename = File::Spec->rel2abs($filename, $BASE_DIR);
-    # read a source as utf-8... Yes. it's bad. but works for most of users.
-    # I may need to remove binmode for STDOUT?
-    my $lines = $filecache{$filename} ||= sub {
-        # :encoding is likely to override $@
-        local $@;
-        open my $fh, "<:encoding(utf-8)", $filename
-            or return '';
-        [<$fh>]
-    }->();
-    return unless ref $lines eq 'ARRAY';
-    my $line = $lines->[$lineno-1];
-    $line =~ s/^\s+|\s+$//g;
-    return $line;
-};
 
 use Test2::Util::HashBase qw{ no_numbers handles _encoding };
-
-use Carp qw/croak/;
-use Cwd ();
 
 BEGIN {
     require Test2::Formatter;
@@ -56,6 +25,8 @@ BEGIN {
     my $todo = OUT_ERR() + 1;
     *OUT_TODO = sub() { $todo };
 }
+
+require Test::Pretty;
 
 our %CONVERTERS = (
     'Test2::Event::Ok'                      => 'event_ok',
@@ -84,8 +55,9 @@ sub init {
 
     $self->{+HANDLES} ||= $self->_open_handles;
     my $handles = $self->{+HANDLES};
-    binmode($_, ":encoding($TERM_ENCODING)") for @$handles;
-    $self->{+_ENCODING} = $TERM_ENCODING;
+    my $term_encoding = $Test::Pretty::TERM_ENCODING;
+    binmode($_, ":encoding($term_encoding)") for @$handles;
+    $self->{+_ENCODING} = $term_encoding;
 
     $self->{+HANDLES}->[OUT_TODO] = $self->{+HANDLES}->[OUT_STD];
 }
@@ -117,7 +89,7 @@ sub event_ok {
     my $src_line;
 
     if (defined($line)) {
-        $src_line = $get_src_line->($filename, $line);
+        $src_line = $Test::Pretty::get_src_line->($filename, $line);
     } else {
         $src_line = '';
     }
@@ -125,10 +97,10 @@ sub event_ok {
     my $out = "";
 
     if (! $e->{pass} ) {
-        my $fail_char = $ENCODING_IS_UTF8 ? "\x{2716}" : "x";
+        my $fail_char = $Test::Pretty::ENCODING_IS_UTF8 ? "\x{2716}" : "x";
         $out .= colored(['red'], $fail_char);
     } else {
-        my $success_char = $ENCODING_IS_UTF8 ? "\x{2713}" : "o";
+        my $success_char = $Test::Pretty::ENCODING_IS_UTF8 ? "\x{2713}" : "o";
         $out .= colored(['green'], $success_char);
     }
 
@@ -253,7 +225,7 @@ sub finalize {
 
     if (!$is_subtest and $SHOW_DUMMY_TAP) {
         my $msg = 'ok';
-        if ($failed or $plan != $count) {
+        if ($failed or $plan and $plan != $count) {
             $msg = 'not ' . $msg;
         }
             

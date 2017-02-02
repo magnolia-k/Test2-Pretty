@@ -8,8 +8,8 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME                => 'Test2-Pretty',
     AUTHOR              => q{magnolia <magnolia.k@me.com>},
-    VERSION_FROM        => 'lib/Test2/Pretty.pm',
-    ABSTRACT_FROM       => 'lib/Test2/Pretty.pm',
+    VERSION_FROM        => 'lib/Test/Pretty.pm',
+    ABSTRACT_FROM       => 'lib/Test/Pretty.pm',
     LICENSE             => 'perl',
     MIN_PERL_VERSION    => 5.008001,
 
@@ -28,5 +28,6 @@ WriteMakefile(
     PREREQ_PM           => {
         'Test::More'        => 1.302075,
         'Term::Encoding'    => 0,
+        'Scorp::Guard'      => 0,
     }
 );
