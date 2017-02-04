@@ -1,66 +1,50 @@
 package Test::Pretty;
-
+use 5.008001;
 use strict;
 use warnings;
 
-our $VERSION = '0.40';
+our $VERSION = "0.40";
+
+use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
+use Term::Encoding ();
+use Term::ANSIColor ();
+use Scope::Guard;
 
 require Test::Builder;
 
-# Conditionally load Windows Term encoding
-use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
-use Term::Encoding ();
+if (Test::Builder->VERSION < 1.3) {
 
-use File::Spec ();
-use Term::ANSIColor ();
-use Test::More ();
-use Scope::Guard;
-use Carp ();
+    # In an environment where Test2 is not loaded, use the original Test::Pretty.
+    require Test::Pretty::Originator;
 
-use Cwd ();
-
-*colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
-
-our $TERM_ENCODING = Term::Encoding::term_encoding();
-our $ENCODING_IS_UTF8 = $TERM_ENCODING =~ /^utf-?8$/i;
-
-our $BASE_DIR = Cwd::getcwd();
-my %filecache;
-our $get_src_line = sub {
-    my ($filename, $lineno) = @_;
-    $filename = File::Spec->rel2abs($filename, $BASE_DIR);
-    # read a source as utf-8... Yes. it's bad. but works for most of users.
-    # I may need to remove binmode for STDOUT?
-    my $lines = $filecache{$filename} ||= sub {
-        # :encoding is likely to override $@
-        local $@;
-        open my $fh, "<:encoding(utf-8)", $filename
-            or return '';
-        [<$fh>]
-    }->();
-    return unless ref $lines eq 'ARRAY';
-    my $line = $lines->[$lineno-1];
-    $line =~ s/^\s+|\s+$//g;
-    return $line;
-};
-
-if (Test::Builder->VERSION > 1.3) {
-
+} else {
     my $builder = Test::Builder->new();
     my $hub = $builder->{Stack}->top;
 
-    if ((!$ENV{HARNESS_ACTIVE} || $ENV{PERL_TEST_PRETTY_ENABLED})) {
+    if (!$ENV{HARNESS_ACTIVE} || $ENV{PERL_TEST_PRETTY_ENABLED}) {
         require Test2::Formatter::Pretty;
-        $hub->format(Test2::Formatter::Pretty->new());
+        my $formatter = Test2::Formatter::Pretty->new();
+        $formatter->encoding(Term::Encoding::term_encoding());
+        $hub->format($formatter);
+
+        $builder->no_header(1);
     } else {
+
         no warnings 'redefine';
         my $ORIGINAL_ok = \&Test::Builder::ok;
         my @NAMES;
 
-        $|++;
+        require Term::Encoding;
+        require Test2::Formatter::Pretty::TAP;
+        my $formatter = Test2::Formatter::Pretty::TAP->new;
+        $formatter->encoding(Term::Encoding::term_encoding());
+        $hub->format($formatter);
+
+        *colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
 
         my ($arrow_mark, $failed_mark);
-        if ($ENCODING_IS_UTF8) {
+        my $encoding_is_utf8 = Term::Encoding::term_encoding() =~ /^utf-?8$/i;
+        if ($encoding_is_utf8) {
             $arrow_mark = "\x{bb}";
             $failed_mark = " \x{2192} ";
         } else {
@@ -68,21 +52,12 @@ if (Test::Builder->VERSION > 1.3) {
             $failed_mark = " x ";
         }
 
-        my $builder = Test::Builder->new();
-        my $hub = $builder->{Stack}->top;
-        my $formatter = Test::Builder::Formatter->new();
-        $formatter->encoding($TERM_ENCODING);
-        $hub->format($formatter);
-
         *Test::Builder::subtest = sub {
             push @NAMES, $_[1];
             my $guard = Scope::Guard->new(sub {
                 pop @NAMES;
             });
-            $_[0]->note(
-                colored(['cyan'], $arrow_mark x (@NAMES*2)) . 
-                    " " . join(colored(['yellow'], $failed_mark), $NAMES[-1])
-                );
+            $_[0]->note(colored(['cyan'], $arrow_mark x (@NAMES*2)) . " " . join(colored(['yellow'], $failed_mark), $NAMES[-1]));
             $_[2]->();
         };
 
@@ -90,6 +65,8 @@ if (Test::Builder->VERSION > 1.3) {
             my @args = @_;
             $args[2] ||= do {
                 my ( $package, $filename, $line ) = caller($Test::Builder::Level);
+                require Test2::Formatter::Pretty;
+                my $get_src_line = Test2::Formatter::Pretty::get_src_line();
                 "L $line: " . $get_src_line->($filename, $line);
             };
             if (@NAMES) {
@@ -97,15 +74,15 @@ if (Test::Builder->VERSION > 1.3) {
             }
             local $Test::Builder::Level = $Test::Builder::Level + 1;
             &$ORIGINAL_ok(@_);
-        }
+        };
     }
-} else {
-    require Test::Pretty::Originator;
 }
 
 1;
 
 __END__
+
+=pod
 
 =encoding utf8
 

@@ -2,77 +2,53 @@ package Test2::Formatter::Pretty;
 
 use strict;
 use warnings;
-require PerlIO;
 
 our $VERSION = '0.40';
 
+use parent qw/Test::Builder::Formatter/;
+use Test2::Util::HashBase qw{ handles _encoding };
+
+BEGIN {
+    *OUT_STD  = Test::Builder::Formatter->can('OUT_STD');
+    *OUT_ERR  = Test::Builder::Formatter->can('OUT_ERR');
+    *OUT_TODO  = Test::Builder::Formatter->can('OUT_TODO');
+}
+
+# Conditionally load Windows Term encoding
 use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
+use Term::Encoding ();
 use Term::ANSIColor ();
+use File::Spec ();
+use Cwd ();
 
 *colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
 
-my $SHOW_DUMMY_TAP;
+our $BASE_DIR = Cwd::getcwd();
+my %filecache;
+my $get_src_line = sub {
+    my ($filename, $lineno) = @_;
+    $filename = File::Spec->rel2abs($filename, $BASE_DIR);
+    # read a source as utf-8... Yes. it's bad. but works for most of users.
+    # I may need to remove binmode for STDOUT?
+    my $lines = $filecache{$filename} ||= sub {
+        # :encoding is likely to override $@
+        local $@;
+        open my $fh, "<:encoding(utf-8)", $filename
+            or return '';
+        [<$fh>]
+    }->();
+    return unless ref $lines eq 'ARRAY';
+    my $line = $lines->[$lineno-1];
+    $line =~ s/^\s+|\s+$//g;
+    return $line;
+};
 
-use Test2::Util::HashBase qw{ no_numbers handles _encoding };
-
-BEGIN {
-    require Test2::Formatter;
-    our @ISA = qw(Test2::Formatter::TAP);
-    
-    *OUT_STD = Test2::Formatter::TAP->can('OUT_STD');
-    *OUT_ERR = Test2::Formatter::TAP->can('OUT_ERR');
-
-    my $todo = OUT_ERR() + 1;
-    *OUT_TODO = sub() { $todo };
+sub get_src_line {
+    return $get_src_line;
 }
 
-require Test::Pretty;
-
-our %CONVERTERS = (
-    'Test2::Event::Ok'                      => 'event_ok',
-    'Test2::Event::Skip'                    => 'event_skip',
-    'Test2::Event::Note'                    => 'event_note',
-    'Test2::Event::Diag'                    => 'event_diag',
-    'Test2::Event::Bail'                    => 'event_bail',
-    'Test2::Event::Exception'               => 'event_exception',
-    'Test2::Event::Subtest'                 => 'event_subtest',
-    'Test2::Event::Plan'                    => 'event_plan',
-    'Test2::Event::TAP::Version'            => 'event_version',
-    'Test2::Formatter::Pretty::TodoDiag'    => 'event_todo_diag',
-);
-
-if ($ENV{HARNESS_ACTIVE}) {
-    $SHOW_DUMMY_TAP++;
-}
-
-my %SAFE_TO_ACCESS_HASH = %CONVERTERS;
-
-_autoflush(\*STDOUT);
-_autoflush(\*STDERR);
-
-sub init {
-    my $self = shift;
-
-    $self->{+HANDLES} ||= $self->_open_handles;
-    my $handles = $self->{+HANDLES};
-    my $term_encoding = $Test::Pretty::TERM_ENCODING;
-    binmode($_, ":encoding($term_encoding)") for @$handles;
-    $self->{+_ENCODING} = $term_encoding;
-
-    $self->{+HANDLES}->[OUT_TODO] = $self->{+HANDLES}->[OUT_STD];
-}
-
-if ($^C) {
-    no warnings 'redefine';
-    *write = sub {};
-}
-
-sub _autoflush {
-    my($fh) = pop;
-    my $old_fh = select $fh;
-    $| = 1;
-    select $old_fh;
-}
+my $TERM_ENCODING  = Term::Encoding::term_encoding();
+my $SHOW_DUMMY_TAP = $ENV{HARNESS_ACTIVE} ? 1 : 0; 
 
 sub event_ok {
     my $self = shift;
@@ -82,25 +58,19 @@ sub event_ok {
     return [OUT_STD, ""] if ($e->subtest_id and $e->{pass});
 
     my ($name, $todo) = @{$e}{qw/name todo/};
-    my $in_todo = defined($todo);
-
-    my $filename = $e->trace->file;
-    my $line = $e->trace->line;
-    my $src_line;
-
-    if (defined($line)) {
-        $src_line = $Test::Pretty::get_src_line->($filename, $line);
-    } else {
-        $src_line = '';
-    }
+    my $in_todo  = defined($todo);
+    my $line     = $e->trace->line;
+    my $src_line = $get_src_line->($e->trace->file, $line);
 
     my $out = "";
 
+    my $encoding_is_utf8 = $TERM_ENCODING =~ /^utf-?8$/i;
+
     if (! $e->{pass} ) {
-        my $fail_char = $Test::Pretty::ENCODING_IS_UTF8 ? "\x{2716}" : "x";
+        my $fail_char = $encoding_is_utf8 ? "\x{2716}" : "x";
         $out .= colored(['red'], $fail_char);
     } else {
-        my $success_char = $Test::Pretty::ENCODING_IS_UTF8 ? "\x{2713}" : "o";
+        my $success_char = $encoding_is_utf8 ? "\x{2713}" : "o";
         $out .= colored(['green'], $success_char);
     }
 
@@ -185,18 +155,15 @@ sub event_diag {
 
 sub event_plan {
     my $self = shift;
-    my ($e, $num) = @_;
+    my ($e) = @_;
 
-    my $directive = $e->directive;
-    return if $directive && $directive eq 'NO PLAN';
 	return if $e->max != 0; # display only skip all
 
-    $SHOW_DUMMY_TAP = 0;
-
+    my $directive = $e->directive;
     my $reason = $e->reason;
     $reason =~ s/\n/\n# /g if $reason;
 
-    my $plan = "1.." . $e->max;
+    my $plan = "1..0";
     if ($directive) {
         $plan .= " # $directive";
         $plan .= " $reason" if defined $reason;
@@ -205,30 +172,23 @@ sub event_plan {
     return [OUT_STD, "$plan\n"];
 }
 
-sub event_todo_diag {
-    my $self = shift;
-    my @out = $self->event_diag(@_);
-    $out[0]->[0] = OUT_TODO();
-    return @out;
-}
-
 sub finalize {
     my $self = shift;
     my ($plan, $count, $failed, undef, $is_subtest) = @_;
 
     my $handles = $self->{+HANDLES};
 
-    if (!$is_subtest and $plan and $plan ne 'SKIP' and $plan != $count) {
+    if (!$is_subtest and $plan and ($plan ne 'SKIP') and ($plan != $count)) {
         my $io = $handles->[OUT_ERR()];
         print $io "# Bad plan: $count != $plan\n";
     }
 
-    if (!$is_subtest and $SHOW_DUMMY_TAP) {
+    if (!$is_subtest and $SHOW_DUMMY_TAP and $plan ne 'SKIP') {
         my $msg = 'ok';
-        if ($failed or $plan and $plan != $count) {
+        if ($failed or !$plan or $plan != $count) {
             $msg = 'not ' . $msg;
         }
-            
+
         my $io = $handles->[OUT_STD()];
         print $io "\n$msg\n";
     }

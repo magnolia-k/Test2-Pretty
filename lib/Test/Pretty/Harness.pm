@@ -9,7 +9,7 @@ sub new {
     my $class = shift;
     my $arg_for = shift;
     $arg_for->{parser_class} = 'Test::Pretty::Parser';
-    $arg_for->{switches} = ['-Ilib', '-MTest2::Pretty'];
+    $arg_for->{switches} = ['-MTest::Pretty'];
     my $self = $class->SUPER::new($arg_for);
     return $self;
 }
