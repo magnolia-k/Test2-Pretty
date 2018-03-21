@@ -17,6 +17,8 @@ use Test2::Util qw/clone_io/;
 
 require Test2::Formatter::TAP;
 
+use File::Spec ();
+
 sub OUT_STD() { 0 }
 sub OUT_ERR() { 1 }
 
@@ -47,6 +49,27 @@ _autoflush(\*STDOUT);
 _autoflush(\*STDERR);
 
 *colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
+
+our $BASE_DIR = Cwd::getcwd();
+my %filecache;
+my $get_src_line = sub {
+    my ($filename, $lineno) = @_;
+    $filename = File::Spec->rel2abs($filename, $BASE_DIR);
+    # read a source as utf-8... Yes. it's bad. but works for most of users.
+    # I may need to remove binmode for STDOUT?
+    my $lines = $filecache{$filename} ||= sub {
+        # :encoding is likely to override $@
+        local $@;
+        open my $fh, "<:encoding(utf-8)", $filename
+            or return '';
+        [<$fh>]
+    }->();
+    return unless ref $lines eq 'ARRAY';
+    my $line = $lines->[$lineno-1];
+    $line =~ s/^\s+|\s+$//g;
+    return $line;
+};
+
 
 my $SHOW_DUMMY_TAP;
 my $TERM_ENCODING = Term::Encoding::term_encoding();
@@ -192,10 +215,17 @@ sub assert_tap {
     }
 
     my @extra;
+
     defined($name) && (
         (index($name, "\n") != -1 && (($name, @extra) = split(/\n\r?/, $name, -1))),
         ((index($name, "#" ) != -1  || substr($name, -1) eq '\\') && (($name =~ s|\\|\\\\|g), ($name =~ s|#|\\#|g)))
     );
+
+    if (!defined($name)) {
+        my ($pkg, $file, $line) = @{$f->{trace}{frame}};
+        my $src_line = $get_src_line->($file, $line);
+        $name ||= "  L$line: $src_line";
+    }
 
     my $extra_space = @extra ? ' ' x (length($ok) + 2) : '';
     my $extra_indent = '';
