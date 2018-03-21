@@ -5,7 +5,10 @@ use warnings;
 
 our $VERSION = "v0.0.1";
 
+use Test2::API qw/test2_formatter_set/;
 
+require Test2::Formatter::Pretty;
+test2_formatter_set('Test2::Formatter::Pretty');
 
 1;
 __END__

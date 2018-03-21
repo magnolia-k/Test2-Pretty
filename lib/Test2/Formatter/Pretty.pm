@@ -373,7 +373,7 @@ sub finalize {
     my $self = shift;
     my (undef, undef, undef, $pass, $is_subtest) = @_;
 
-    if ($SHOW_DUMMY_TAP && (! $is_subtest)) {
+    if ($SHOW_DUMMY_TAP && (!$is_subtest)) {
         print "1..1\n";
         if ($pass) {
             print "ok\n";
