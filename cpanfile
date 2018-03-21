@@ -1,7 +1,3 @@
-requires 'Test::More', '0.98';
-requires 'Term::Encoding';
-requires 'Scope::Guard';
+requires 'perl', '5.008001';
 
-on 'test' => sub {
-    requires 'Test::Requires', 0;
-};
+requires 'Test::More', '1.302133';

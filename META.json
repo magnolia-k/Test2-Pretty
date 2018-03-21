@@ -1,10 +1,10 @@
 {
-   "abstract" : "Smile Precure!",
+   "abstract" : "It's new $module",
    "author" : [
-      "Tokuhiro Matsuno <tokuhirom AAJKLFJEF@ GMAIL COM>"
+      "Magnolia K <magnolia.k@icloud.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v3.0.9, CPAN::Meta::Converter version 2.150005",
+   "generated_by" : "Minilla/v3.0.16, CPAN::Meta::Converter version 2.150010",
    "license" : [
       "perl_5"
    ],
@@ -12,7 +12,7 @@
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
       "version" : "2"
    },
-   "name" : "Test-Pretty",
+   "name" : "Test2-Pretty",
    "no_index" : {
       "directory" : [
          "t",
@@ -42,33 +42,16 @@
       },
       "runtime" : {
          "requires" : {
-            "Scope::Guard" : "0",
-            "Term::Encoding" : "0",
-            "Test::More" : "0.98",
             "perl" : "5.008001"
          }
       },
       "test" : {
          "requires" : {
-            "Test::Requires" : "0"
+            "Test::More" : "0.98"
          }
       }
    },
    "release_status" : "unstable",
-   "resources" : {
-      "bugtracker" : {
-         "web" : "https://github.com/magnolia-k/Test2-Pretty/issues"
-      },
-      "homepage" : "https://github.com/magnolia-k/Test2-Pretty",
-      "repository" : {
-         "type" : "git",
-         "url" : "git://github.com/magnolia-k/Test2-Pretty.git",
-         "web" : "https://github.com/magnolia-k/Test2-Pretty"
-      }
-   },
-   "version" : "0.40",
-   "x_contributors" : [
-      "Magnolia K <magnolia.k@icloud.com>"
-   ],
-   "x_serialization_backend" : "JSON::PP version 2.27300"
+   "version" : "0.01",
+   "x_serialization_backend" : "JSON::PP version 2.27400_02"
 }
