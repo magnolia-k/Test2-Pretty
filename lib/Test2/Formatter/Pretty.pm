@@ -13,6 +13,8 @@ use Test2::Util::HashBase qw{
     -made_assertion
 };
 
+use Test2::Util qw/clone_io/;
+
 require Test2::Formatter::TAP;
 
 sub OUT_STD() { 0 }
@@ -230,8 +232,12 @@ sub assert_tap {
 
     if ($directives) {
         $directives = ' # TODO & SKIP' if $directives eq ' # TODO & skip';
+        $directives = colored([$ENV{TEST_PRETTY_COLOR_NAME} || 'BRIGHT_BLACK'], $directives);
         $ok .= $directives;
-        $ok .= " $reason" if defined($reason);
+        if (defined($reason)) {
+            $reason = colored([$ENV{TEST_PRETTY_COLOR_NAME} || 'BRIGHT_BLACK'], $reason);
+            $ok .= " $reason";
+        }
     }
 
     $extra_space = ' ' if $self->no_subtest_space;
