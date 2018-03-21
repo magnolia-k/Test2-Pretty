@@ -1,0 +1,4 @@
+name = "Test2-Pretty"
+# badges = ["travis"]
+module_maker="ModuleBuildTiny"
+

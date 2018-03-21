@@ -8,6 +8,7 @@ use utf8;
 our $VERSION = 'v0.0.1';
 
 use parent qw/Test2::Formatter/;
+use Test2::API qw/context/;
 use Test2::Util::HashBase qw{
     handles _encoding _last_fh no_numbers
     -made_assertion
@@ -15,9 +16,9 @@ use Test2::Util::HashBase qw{
 
 use Test2::Util qw/clone_io/;
 
-require Test2::Formatter::TAP;
-
 use File::Spec ();
+use Term::ANSIColor ();
+use Term::Encoding ();
 
 sub OUT_STD() { 0 }
 sub OUT_ERR() { 1 }
@@ -28,6 +29,9 @@ sub _autoflush {
     $| = 1;
     select $old_fh;
 }
+
+_autoflush(\*STDOUT);
+_autoflush(\*STDERR);
 
 sub _open_handles {
     my $self = shift;
@@ -42,16 +46,11 @@ sub _open_handles {
     return [$out, $err];
 }
 
-use Term::ANSIColor ();
-use Term::Encoding ();
-
-_autoflush(\*STDOUT);
-_autoflush(\*STDERR);
-
 *colored = -t STDOUT || $ENV{PERL_TEST_PRETTY_ENABLED} ? \&Term::ANSIColor::colored : sub { $_[1] };
 
 our $BASE_DIR = Cwd::getcwd();
 my %filecache;
+# For use in string interpolation, it is defined as a function object, not as a function.
 my $get_src_line = sub {
     my ($filename, $lineno) = @_;
     $filename = File::Spec->rel2abs($filename, $BASE_DIR);
@@ -69,7 +68,6 @@ my $get_src_line = sub {
     $line =~ s/^\s+|\s+$//g;
     return $line;
 };
-
 
 my $SHOW_DUMMY_TAP;
 my $TERM_ENCODING = Term::Encoding::term_encoding();
@@ -348,11 +346,11 @@ sub info_tap {
 
         if ($SKIP_SUBTEST_INFO && $msg =~ m/^#   Failed test/) {
             $SKIP_SUBTEST_INFO = undef;
-            @out = [$IO, ''];
+            @out = [$IO, undef];
         }
 
         if ($msg =~ m/^# Looks like you failed/) {
-            @out = [$IO, ''];
+            @out = [$IO, undef];
         }
 
         @out;
@@ -372,6 +370,17 @@ sub summary_tap {
 }
 
 sub finalize {
+    my $self = shift;
+    my (undef, undef, undef, $pass, $is_subtest) = @_;
+
+    if ($SHOW_DUMMY_TAP && (! $is_subtest)) {
+        print "1..1\n";
+        if ($pass) {
+            print "ok\n";
+        } else {
+            print "not ok\n";
+        }
+    }
 }
 
 1;

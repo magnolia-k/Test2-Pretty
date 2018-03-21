@@ -1,14 +1,16 @@
-# NAME
+# Name
 
-Test2::Pretty - It's new $module
+Test2::Pretty - prototype Test::Pretty for new Test2 lib!
 
 # SYNOPSIS
 
-    use Test2::Pretty;
+```sh
+$ cd Test2-Pretty
+$ carton install
+$ carton exec T2_FORMATTER='Pretty' perl -Ilib test01.t
+```
 
-# DESCRIPTION
-
-Test2::Pretty is ...
+**During experiment of implementation!!!!**
 
 # LICENSE
 
