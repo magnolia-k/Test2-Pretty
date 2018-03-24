@@ -17,6 +17,7 @@ use Test2::Util::HashBase qw{
 use Test2::Util qw/clone_io/;
 
 use File::Spec ();
+use if $^O eq 'MSWin32', 'Win32::Console::ANSI';
 use Term::ANSIColor ();
 use Term::Encoding ();
 
@@ -69,7 +70,6 @@ my $get_src_line = sub {
     return $line;
 };
 
-my $SHOW_DUMMY_TAP;
 my $TERM_ENCODING = Term::Encoding::term_encoding();
 my $ENCODING_IS_UTF8 = $TERM_ENCODING =~ /^utf-?8$/i;
 my $SKIP_SUBTEST_INFO = undef;
@@ -82,10 +82,6 @@ sub init {
     binmode($_, "encoding($TERM_ENCODING)") for @{$self->{+HANDLES}};
 
     $self->{+_ENCODING} = $TERM_ENCODING;
-
-    if ($ENV{HARNESS_ACTIVE}) {
-        $SHOW_DUMMY_TAP++;
-    }
 }
 
 sub hide_buffered { 0 }
@@ -99,7 +95,7 @@ sub write {
     $self->{+MADE_ASSERTION} = 1 if $f->{assert};
 
     my $nesting = $f->{trace}->{nested} || 0;
-    my $indent = '    ' x ($nesting + 1);
+    my $indent = '    ' x $nesting;
     my $handles = $self->{+HANDLES};
 
     for my $set (@tap) {
@@ -108,17 +104,8 @@ sub write {
         next unless $msg;
         my $io = $handles->[$hid] or next;
  
-        print $io "\n"
-            if $ENV{HARNESS_ACTIVE}
-            && !$ENV{HARNESS_IS_VERBOSE}
-            && $hid == OUT_ERR
-            && $self->{+_LAST_FH} != $io
-            && $msg =~ m/^#\s*Failed test /;
-
-        # In Pretty mode, indent all. Because Test::Harness ignores the indented output
         $msg =~ s/^/$indent/mg;
         print $io $msg;
-        $self->{+_LAST_FH} = $io;
     }
 }
 
@@ -256,14 +243,16 @@ sub assert_tap {
         $name = colored([$ENV{TEST_PRETTY_COLOR_NAME} || 'BRIGHT_BLACK'], "  $name");
     }
 
-    $ok .= " $name" if defined $name && !($is_skip && !$name);
+    $ok .= "$name" if defined $name && !($is_skip && !$name);
 
     if ($directives) {
-        $directives = ' # TODO & SKIP' if $directives eq ' # TODO & skip';
-        $directives = colored([$ENV{TEST_PRETTY_COLOR_NAME} || 'BRIGHT_BLACK'], $directives);
+        if ($directives eq ' # skip') {
+            $directives = colored(['yellow'], 'skip');
+        } elsif ($directives eq ' # TODO & skip') {
+            $directives = ' # TODO & SKIP';
+        }
         $ok .= $directives;
         if (defined($reason)) {
-            $reason = colored([$ENV{TEST_PRETTY_COLOR_NAME} || 'BRIGHT_BLACK'], $reason);
             $ok .= " $reason";
         }
     }
@@ -340,7 +329,7 @@ sub info_tap {
         }
 
         # あまり良くないコードだけど…
-        $msg =~ s/^# Subtest: //;
+        $msg =~ s/^# Subtest:/ /;
 
         my @out = [$IO, "$msg\n"];
 
@@ -367,20 +356,6 @@ sub summary_tap {
     $summary =~ s/^/# /smg;
 
     return [OUT_STD, "$summary\n"];
-}
-
-sub finalize {
-    my $self = shift;
-    my (undef, undef, undef, $pass, $is_subtest) = @_;
-
-    if ($SHOW_DUMMY_TAP && (!$is_subtest)) {
-        print "1..1\n";
-        if ($pass) {
-            print "ok\n";
-        } else {
-            print "not ok\n";
-        }
-    }
 }
 
 1;
