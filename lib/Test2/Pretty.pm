@@ -20,15 +20,21 @@ __END__
 
 =head1 NAME
 
-Test2::Pretty - It's new $module
+Test2::Pretty - Make the test results more visible
 
 =head1 SYNOPSIS
 
     use Test2::Pretty;
+    use Test::More;
+
+    ok(1);
+    ok(0);
 
 =head1 DESCRIPTION
 
-Test2::Pretty is ...
+It is Test2 API compatible version of Test::Pretty.
+
+The original version of Test::Pretty was made by tokuhirom.
 
 =head1 LICENSE
 

@@ -268,9 +268,6 @@ sub assert_tap {
 sub debug_tap {
     my ($self, $f, $num) = @_;
 
-    # Figure out the debug info, this is typically the file name and line
-    # number, but can also be a custom message. If no trace object is provided
-    # then we have nothing useful to display.
     my $name  = $f->{assert}->{details};
     my $trace = $f->{trace};
 
@@ -287,8 +284,6 @@ sub debug_tap {
         ? ' (with amnesty)'
         : '';
 
-    # Create the initial diagnostics. If the test has a name we put the debug
-    # info on a second line, this behavior is inherited from Test::Builder.
     my $msg = defined($name)
         ? qq[# Failed test${amnesty} '$name'\n# $debug\n]
         : qq[# Failed test${amnesty} $debug\n];
@@ -328,7 +323,7 @@ sub info_tap {
             $msg =~ s/\n/\n# /g;
         }
 
-        # あまり良くないコードだけど…
+        # Grab the result of subtest!
         $msg =~ s/^# Subtest:/ /;
 
         my @out = [$IO, "$msg\n"];
@@ -361,3 +356,33 @@ sub summary_tap {
 1;
 
 __END__
+
+=encoding utf-8
+
+=head1 NAME
+
+Test2::Formatter::Pretty - Make the test results more visible
+
+=head1 SYNOPSIS
+
+    $ T2_FORMATTER='Pretty' perl -Ilib test.t
+
+=head1 DESCRIPTION
+
+It is Test2 API compatible version of Test::Pretty.
+
+The original version of Test::Pretty was made by tokuhirom.
+
+=head1 LICENSE
+
+Copyright (C) Magnolia K.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=head1 AUTHOR
+
+Magnolia K E<lt>magnolia.k@icloud.comE<gt>
+
+=cut
+
